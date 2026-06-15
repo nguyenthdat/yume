@@ -1,0 +1,77 @@
+direction: right
+
+Android: {
+  label: "Android App (Kotlin)"
+  UI: "Jetpack Compose Chat UI"
+  OCR: "CameraX / Photo Picker + ML Kit OCR"
+  Embed: "On-device Embedding"
+  Bridge: "Rust Bridge (UniFFI/JNI)"
+}
+
+RustMobile: {
+  label: "Rust Android Core"
+  Contracts: "DTO/API contracts"
+  State: "Conversation state"
+  SSE: "SSE parser + retry/cancel"
+  OcrNorm: "OCR normalization"
+  Client: "Backend HTTPS client"
+}
+
+Backend: {
+  label: "Rust Backend Wrapper (Axum)"
+  API: "OAuth/session + REST/SSE API"
+  Policy: "Quota, rate limit, prompt/tool policy"
+  RAG: "RAG context assembly"
+  OpenCodeClient: "OpenCode client"
+  Stream: "SSE normalizer/proxy"
+  Memory: "Memory writeback"
+  Retention: "30-day TTL cleaner"
+}
+
+Qdrant: {
+  label: "Qdrant Vector DB"
+  Memories: "memories"
+  Summaries: "conversation_summaries"
+  Docs: "documents / ocr_chunks"
+  Runs: "agent_runs"
+}
+
+OpenCode: {
+  label: "Private OpenCode Serve"
+  General: "mobile-chat primary"
+  RagAgent: "rag-answer"
+  Research: "deep-research"
+  Reasoning: "reasoning"
+  Reviewer: "answer-reviewer"
+  Skills: "skills + locked permissions"
+}
+
+DeepSeek: "DeepSeek API\nOpenAI-compatible streaming"
+Obs: "OTel/Prometheus/Grafana"
+Mocks: "Mock DeepSeek/OpenCode/SSE Replay"
+
+Android.UI -> Android.OCR: "capture/import"
+Android.OCR -> Android.UI: "OCR preview/edit"
+Android.UI -> Android.Embed: "embed query/chunks offline"
+Android.UI -> Android.Bridge: "send message / cancel stream"
+Android.Bridge -> RustMobile.Contracts
+RustMobile.Contracts -> RustMobile.Client
+RustMobile.Client -> Backend.API: "HTTPS POST /v1/chat/stream"
+Backend.API -> Backend.Policy
+Backend.Policy -> Backend.RAG
+Backend.RAG -> Qdrant: "filtered search + upsert"
+Qdrant -> Backend.RAG: "sanitized snippets"
+Backend.RAG -> Backend.OpenCodeClient: "<rag_context> + <user_message>"
+Backend.OpenCodeClient -> OpenCode.General: "private HTTP + auth"
+OpenCode.General -> OpenCode.RagAgent
+OpenCode.General -> OpenCode.Research
+OpenCode.General -> OpenCode.Reasoning
+OpenCode.General -> OpenCode.Reviewer
+OpenCode.General -> DeepSeek: "chat/completions stream"
+DeepSeek -> OpenCode.General: "SSE data chunks + [DONE]"
+OpenCode.General -> Backend.Stream: "agent/model events"
+Backend.Stream -> RustMobile.SSE: "normalized ChatEvent SSE"
+RustMobile.SSE -> Android.UI: "token deltas + status + done"
+Backend.API -> Obs: "redacted traces/metrics"
+OpenCode -> Obs: "agent run metrics"
+Mocks -> Backend.API: "local/test harnesses"
