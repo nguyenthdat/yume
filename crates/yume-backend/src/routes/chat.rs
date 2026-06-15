@@ -53,6 +53,12 @@ pub async fn chat_stream(
     let conversation_id = uuid::Uuid::new_v4().to_string();
     let message_id = uuid::Uuid::new_v4().to_string();
 
+    tracing::info!(
+        conversation_id = %conversation_id,
+        message = %request.message.content,
+        "Chat request received",
+    );
+
     // Extract config values for the spawned task
     let opencode_base_url = state.config.opencode_base_url.clone();
     let opencode_username = state.config.opencode_username.clone();
@@ -195,7 +201,7 @@ mod tests {
 
     #[tokio::test]
     async fn chat_stream_returns_sse_events() {
-        let server = TestServer::new(test_app()).unwrap();
+        let server = TestServer::new(test_app());
 
         let request = ChatRequest {
             schema_version: CURRENT_SCHEMA_VERSION.into(),
@@ -231,7 +237,7 @@ mod tests {
 
     #[tokio::test]
     async fn chat_stream_rejects_wrong_schema_version() {
-        let server = TestServer::new(test_app()).unwrap();
+        let server = TestServer::new(test_app());
 
         let request = ChatRequest {
             schema_version: "2020-01-01".into(),

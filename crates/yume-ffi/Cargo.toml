@@ -1,9 +1,18 @@
 [package]
 name = "yume-ffi"
 version.workspace = true
-edition.workspace = true
+edition = "2021"
 license.workspace = true
 repository.workspace = true
-description = "UniFFI bindings for Android Rust Core (stub — Swing 0.6+)"
+description = "UniFFI bindings — Rust core exposed to Kotlin via JNI"
 
 [dependencies]
+uniffi = { version = "0.28", features = ["cli"] }
+yume-contracts = { path = "../yume-contracts" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+uuid = { version = "1", features = ["v4"] }
+thiserror = "2"
+
+[build-dependencies]
+uniffi = { version = "0.28", features = ["build"] }

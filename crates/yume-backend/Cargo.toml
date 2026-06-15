@@ -27,4 +27,4 @@ yume-opencode-client = { path = "../yume-opencode-client" }
 sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "chrono"] }
 
 [dev-dependencies]
-axum-test = "17"
+axum-test = "20"

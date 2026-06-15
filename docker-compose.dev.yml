@@ -1,41 +1,14 @@
 # Yume dev stack — Docker Compose
-# Start: docker compose -f docker-compose.dev.yml up -d
-# Stop:  docker compose -f docker-compose.dev.yml down -v
+# Infrastructure services + OpenCode server (Docker).
+# Backend runs locally via `cargo run`.
 
 name: yume-dev
 
 services:
   # ---------------------------------------------------------------------------
-  # Rust Backend — public API surface for Android
-  # ---------------------------------------------------------------------------
-  backend:
-    build:
-      context: .
-      dockerfile: infra/backend/Dockerfile
-    ports:
-      - "3000:3000"
-    env_file:
-      - .env
-    environment:
-      - YUME_LISTEN_ADDR=0.0.0.0:3000
-      - YUME_ENV=development
-      - OPENCODE_BASE_URL=http://opencode:4096
-      - QDRANT_URL=http://qdrant:6334
-      - DATABASE_URL=postgres://yume:yume_dev@postgres:5432/yume
-      - KEYDB_URL=redis://keydb:6379
-    depends_on:
-      postgres:
-        condition: service_healthy
-      keydb:
-        condition: service_healthy
-      qdrant:
-        condition: service_healthy
-    networks:
-      - yume-net
-    restart: unless-stopped
-
-  # ---------------------------------------------------------------------------
-  # OpenCode Server — dedicated container, private agent orchestration
+  # OpenCode Server — private agent orchestration runtime
+  # Uses Docker image built from infra/opencode/Dockerfile
+  # Config mounted from ./opencode-server/ → /home/opencode/.config/opencode/
   # ---------------------------------------------------------------------------
   opencode:
     build:
@@ -48,7 +21,7 @@ services:
       - OPENCODE_SERVER_PASSWORD=${OPENCODE_SERVER_PASSWORD:-yume_dev_pass}
       - DEEPSEEK_API_KEY=${DEEPSEEK_API_KEY:-}
     volumes:
-      - ./opencode-server:/opencode-config:ro
+      - ./opencode-server:/home/opencode/.config/opencode:ro
     networks:
       - yume-net
     restart: unless-stopped
@@ -116,17 +89,11 @@ services:
       - yume-net
     restart: unless-stopped
 
-# ---------------------------------------------------------------------------
-# Volumes
-# ---------------------------------------------------------------------------
 volumes:
   qdrant_data:
   postgres_data:
   keydb_data:
 
-# ---------------------------------------------------------------------------
-# Network
-# ---------------------------------------------------------------------------
 networks:
   yume-net:
     driver: bridge

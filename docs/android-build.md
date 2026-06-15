@@ -1,181 +1,97 @@
-# Android + Rust UniFFI Design
+# Android Build & Test Guide
 
-## Android scope
+## Prerequisites
 
-Android is responsible for UI and Android platform integration only.
+- Android Studio (or Android SDK CLI)
+- JDK 17
+- Android SDK API 35 + Build Tools
+- Emulator (API 35 recommended) or physical device
 
-Stack:
+## Quick Start
 
-- Kotlin.
-- Jetpack Compose.
-- CameraX or Android Photo Picker.
-- ML Kit Text Recognition v2.
-- MediaPipe/TFLite text embedding runtime.
-- UniFFI/JNI bridge to Rust.
-- Light local cache for UI/session state.
+```bash
+# Set up Android SDK location (if not in ANDROID_HOME)
+echo "sdk.dir=/Users/$USER/Library/Android/sdk" > android/local.properties
 
-Target:
+# Build APK
+just apk-debug
 
-- Latest two Android versions only: Android 15/16.
-- This simplifies permission/runtime support but reduces device coverage.
+# Install on device/emulator
+just apk-install
 
-## Android package layout
-
-```txt
-com.yume/
-  MainActivity.kt
-
-  ui/chat/
-    ChatScreen.kt
-    ChatViewModel.kt
-    MessageBubble.kt
-    StreamingMessageRenderer.kt
-
-  ui/conversations/
-    ConversationListScreen.kt
-
-  ui/ocr/
-    OcrCaptureScreen.kt
-    OcrPreviewScreen.kt
-    OcrEditScreen.kt
-
-  ui/settings/
-    SettingsScreen.kt
-    PrivacySettingsScreen.kt
-
-  platform/camera/
-    CameraXController.kt
-
-  platform/photo/
-    PhotoPickerAdapter.kt
-
-  platform/ocr/
-    MlKitTextRecognizer.kt
-    OcrResultMapper.kt
-
-  platform/embedding/
-    AndroidEmbeddingProvider.kt
-    MediaPipeTextEmbedder.kt
-    TfliteTextEmbedder.kt
-
-  rust/
-    YumeRustClient.kt
-    YumeStreamCallback.kt
-    YumeErrorMapper.kt
-
-  data/
-    ChatRepository.kt
-    SessionRepository.kt
+# Build + install + launch
+just apk-run
 ```
 
-## OCR pipeline
+## Manual Commands
 
-1. User captures image with CameraX or imports through Photo Picker.
-2. Android prepares image orientation/resolution.
-3. ML Kit Text Recognition v2 runs locally.
-4. Kotlin maps ML Kit blocks/lines/elements into Yume OCR DTOs.
-5. User reviews and edits in OCR preview screen.
-6. Kotlin sends confirmed text and metadata to Rust Core.
-7. Rust normalizes text for chat/RAG.
-8. User can send OCR text to chat or ingest as a document.
+```bash
+# Build debug APK
+cd android && ./gradlew assembleDebug
 
-Recommended MVP OCR dependency:
+# APK location
+android/app/build/outputs/apk/debug/app-debug.apk
 
-- Bundled ML Kit Latin model for immediate offline availability.
-- Vietnamese/English first.
-- Add other language packs later.
+# Install on emulator
+adb install -r android/app/build/outputs/apk/debug/app-debug.apk
 
-Captured OCR metadata:
+# Launch app
+adb shell am start -n com.yume/.MainActivity
 
-- Source URI/hash.
-- Page index.
-- Block/line positions when available.
-- Confidence.
-- Language hints.
-- User-corrected flag.
-- Timestamp.
+# Watch logs
+adb logcat -s "AndroidRuntime:E" "com.yume:*"
 
-## On-device embedding pipeline
-
-Kotlin owns the platform runtime. Rust owns chunking, request building, and validation flow.
-
-Recommended UniFFI foreign trait shape:
-
-```rust
-trait AndroidEmbeddingProvider {
-  async fn embed_texts(
-    texts: Vec<String>,
-    model_id: String
-  ) -> Result<Vec<EmbeddingVector>, YumeError>;
-}
+# Force stop
+adb shell am force-stop com.yume
 ```
 
-Kotlin implementation options:
+## Testing on Emulator
 
-- `MediaPipeTextEmbedder` for fast prototype.
-- `TfliteTextEmbedder` for quantized multilingual E5 production candidate.
+```bash
+# 1. Start the Yume backend (from project root)
+just dev
+# Or: docker compose -f docker-compose.dev.yml up -d
 
-## Rust UniFFI boundary
+# 2. Verify backend is running
+curl http://localhost:3000/health
+# → {"status":"ok","version":"0.1.0","environment":"development"}
 
-Export coarse APIs, not many tiny calls.
+# 3. Build and install APK
+just apk-run
 
-Suggested exported object:
-
-```txt
-YumeClient
-  create_session()
-  build_chat_request()
-  start_chat_stream(request, callback) -> StreamHandle
-  cancel_stream(stream_id)
-  normalize_ocr_text(input) -> NormalizedOcrText
-  parse_stream_event(raw) -> ChatEvent
-  prepare_document_ingest(ocr_text, metadata) -> DocumentIngestRequest
+# 4. The app connects to http://10.0.2.2:3000 (emulator → host localhost)
+# 5. Type a message and send — you should see streaming AI response
 ```
 
-Exported records/enums should include:
+## Testing on Physical Device
 
-- `ChatRequest`.
-- `ChatResponse`.
-- `ChatEvent`.
-- `OcrCleanupRequest`.
-- `DocumentIngestRequest`.
-- `Session`.
-- `ErrorResponse`.
-- `EmbeddingVector`.
-- `EmbeddingConfig`.
+```bash
+# 1. Find device IP
+adb shell ip route
 
-## Streaming UX and lifecycle
+# 2. Update ApiClient baseUrl in:
+# android/app/src/main/java/com/yume/network/ApiClient.kt
+# Change from http://10.0.2.2:3000 to http://<HOST_IP>:3000
 
-- UI renders token deltas incrementally.
-- Stream cancellation maps to Rust `StreamHandle.cancel()`.
-- Backgrounding should either keep stream if app remains active or cancel cleanly.
-- Reconnection is not automatic unless idempotency key and server replay support are added.
-- Every stream event has monotonically increasing `seq` where possible.
-
-## Android FFI smoke harness
-
-Cases:
-
-- Load native library.
-- Create Rust client.
-- Build chat request.
-- Normalize OCR text.
-- Parse normal stream event.
-- Parse malformed stream event.
-- Map Rust error to Kotlin error.
-- Start and cancel mock stream.
-- Call Kotlin embedding provider through UniFFI trait.
-
-Command target:
-
-```txt
-make android-ffi-smoke
+# 3. Rebuild and install
+just apk-run
 ```
 
-## Risks
+## Troubleshooting
 
-- UniFFI async/callback lifetimes can leak if objects are not destroyed.
-- Streaming callback must be lifecycle-aware.
-- Large OCR payloads across FFI can be expensive.
-- Model assets increase APK size.
-- TFLite conversion for multilingual E5 needs benchmarking before production.
+### "SDK location not found"
+Create `android/local.properties`:
+```
+sdk.dir=/path/to/Android/sdk
+```
+
+### "LocalLifecycleOwner not present" crash
+Fixed in Swing 0.2 — replaced `collectAsStateWithLifecycle()` with `collectAsState()`.
+
+### App crashes on send
+Backend not running. Start with `just dev` or `docker compose -f docker-compose.dev.yml up -d`.
+
+### Emulator can't reach backend
+- Emulator uses `10.0.2.2` to reach host localhost
+- Verify backend listens on `0.0.0.0:3000`
+- Check no firewall blocking port 3000

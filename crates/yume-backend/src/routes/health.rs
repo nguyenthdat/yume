@@ -41,7 +41,7 @@ mod tests {
 
     #[tokio::test]
     async fn health_returns_ok() {
-        let server = TestServer::new(app()).unwrap();
+        let server = TestServer::new(app());
 
         let response = server.get("/health").await;
 

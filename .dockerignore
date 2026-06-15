@@ -1,0 +1,11 @@
+# Docker ignore — exclude local artifacts from build context
+target/
+android/
+docs/
+.opencode/
+.git/
+.gitignore
+.env
+*.md
+!README.md
+node_modules/
