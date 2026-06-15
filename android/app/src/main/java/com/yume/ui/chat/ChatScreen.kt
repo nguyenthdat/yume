@@ -118,7 +118,7 @@ fun ChatScreen(viewModel: ChatViewModel) {
                     Spacer(modifier = Modifier.width(8.dp))
 
                     val canSend = inputText.isNotBlank() && !uiState.isStreaming
-                    IconButton(
+                    Button(
                         onClick = {
                             if (inputText.isNotBlank()) {
                                 viewModel.sendMessage(inputText.trim())
@@ -126,19 +126,11 @@ fun ChatScreen(viewModel: ChatViewModel) {
                             }
                         },
                         enabled = canSend,
-                        modifier = Modifier
-                            .clip(CircleShape)
-                            .background(
-                                if (canSend) MaterialTheme.colorScheme.primary
-                                else MaterialTheme.colorScheme.surfaceVariant
-                            )
+                        modifier = Modifier.height(56.dp).width(72.dp),
+                        shape = CircleShape,
+                        contentPadding = PaddingValues(0.dp)
                     ) {
-                        Icon(
-                            Icons.Default.Send,
-                            contentDescription = "Gửi",
-                            tint = if (canSend) MaterialTheme.colorScheme.onPrimary
-                                   else MaterialTheme.colorScheme.outline
-                        )
+                        Icon(Icons.Default.Send, contentDescription = "Gửi tin nhắn")
                     }
                 }
             }

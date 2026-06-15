@@ -122,27 +122,28 @@ pub enum OpenCodeStream {
 }
 
 impl OpenCodeStream {
-    /// Attempt to connect to OpenCode. Falls back to mock on failure.
-    ///
-    /// Takes owned values so the returned stream is `'static` and can be
-    /// freely moved into spawned tasks.
+    /// Attempt to connect: DeepSeek → OpenCode → mock.
     pub async fn connect(
-        opencode_base_url: String,
-        opencode_username: String,
-        opencode_password: Option<String>,
-        message: String,
+        deepseek_api_key: Option<String>,
+        opencode_base_url: &str,
+        opencode_username: &str,
+        opencode_password: Option<&str>,
+        message: &str,
     ) -> Self {
-        match try_connect_opencode(
-            opencode_base_url,
-            opencode_username,
-            opencode_password,
-            message,
-        )
-        .await
-        {
-            Ok(stream) => Self::Real(stream),
+        // 1. Try DeepSeek directly if API key is set
+        if let Some(key) = deepseek_api_key.as_deref() {
+            if !key.is_empty() {
+                match try_connect_deepseek(key, message).await {
+                    Ok(stream) => return Self::Real(Box::pin(stream)),
+                    Err(e) => tracing::warn!("DeepSeek unavailable: {e}, trying OpenCode..."),
+                }
+            }
+        }
+        // 2. Try OpenCode server
+        match try_connect_opencode(opencode_base_url, opencode_username, opencode_password, message).await {
+            Ok(stream) => Self::Real(Box::pin(stream)),
             Err(_) => {
-                tracing::warn!("OpenCode server unreachable — falling back to mock mode");
+                tracing::warn!(opencode_url = %opencode_base_url, "OpenCode unreachable — mock mode");
                 Self::Mock(MockStream::new())
             }
         }
@@ -164,11 +165,73 @@ impl Stream for OpenCodeStream {
 // Real OpenCode connection
 // ---------------------------------------------------------------------------
 
+// ---------------------------------------------------------------------------
+// DeepSeek direct connection
+// ---------------------------------------------------------------------------
+
+async fn try_connect_deepseek(
+    api_key: &str,
+    message: &str,
+) -> Result<DynStream, OpenCodeError> {
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(30))
+        .build()
+        .map_err(|_| OpenCodeError::Unavailable)?;
+
+    let response = client
+        .post("https://api.deepseek.com/v1/chat/completions")
+        .header("Authorization", format!("Bearer {api_key}"))
+        .json(&serde_json::json!({
+            "model": "deepseek-chat",
+            "messages": [{"role": "user", "content": message}],
+            "stream": true
+        }))
+        .send()
+        .await
+        .map_err(|e| {
+            if e.is_connect() || e.is_timeout() { OpenCodeError::Unavailable }
+            else { OpenCodeError::Http(e) }
+        })?;
+
+    if !response.status().is_success() {
+        return Err(OpenCodeError::ServerError(format!("HTTP {}", response.status())));
+    }
+
+    let stream = response.bytes_stream()
+        .then(|chunk| async {
+            match chunk {
+                Ok(bytes) => {
+                    let text = String::from_utf8_lossy(&bytes);
+                    let mut chunks = Vec::new();
+                    for line in text.lines() {
+                        if let Some(data) = line.strip_prefix("data: ") {
+                            if data == "[DONE]" { break; }
+                            if let Ok(json) = serde_json::from_str::<serde_json::Value>(data) {
+                                if let Some(c) = json["choices"][0]["delta"]["content"].as_str() {
+                                    if !c.is_empty() { chunks.push(Ok(c.to_string())); }
+                                }
+                            }
+                        }
+                    }
+                    chunks
+                }
+                Err(e) => vec![Err(OpenCodeError::Http(e))],
+            }
+        })
+        .flat_map(futures::stream::iter);
+
+    Ok(Box::pin(stream))
+}
+
+// ---------------------------------------------------------------------------
+// OpenCode connection (fallback)
+// ---------------------------------------------------------------------------
+
 async fn try_connect_opencode(
-    base_url: String,
-    username: String,
-    password: Option<String>,
-    message: String,
+    base_url: &str,
+    username: &str,
+    password: Option<&str>,
+    message: &str,
 ) -> Result<DynStream, OpenCodeError> {
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(5))
@@ -185,9 +248,8 @@ async fn try_connect_opencode(
     });
 
     let mut request_builder = client.post(&url).json(&body);
-
-    if let Some(ref pw) = password {
-        request_builder = request_builder.basic_auth(&username, Some(pw));
+    if let Some(pw) = password {
+        request_builder = request_builder.basic_auth(username, Some(pw));
     }
 
     let response = request_builder.send().await.map_err(|e| {

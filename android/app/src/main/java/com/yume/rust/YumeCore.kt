@@ -77,28 +77,33 @@ object YumeCore {
         message: String,
         conversationId: String,
     ) {
-        val client = com.yume.network.ApiClient(backendUrl)
-        val request = com.yume.network.ChatRequest(
-            conversation_id = conversationId,
-            message = com.yume.network.ChatMessage(content = message),
-            stream = true
-        )
-        client.streamChat(request).collect { event ->
-            when (event) {
-                is com.yume.network.ChatEvent.ChatStarted ->
-                    trySend(ChatStreamEvent.Started(event.conversation_id, event.message_id))
-                is com.yume.network.ChatEvent.MessageDelta ->
-                    trySend(ChatStreamEvent.Delta(event.seq, event.delta.text))
-                is com.yume.network.ChatEvent.Done -> {
-                    trySend(ChatStreamEvent.Done(event.finish_reason))
-                    close()
+        try {
+            val client = com.yume.network.ApiClient(backendUrl)
+            val request = com.yume.network.ChatRequest(
+                conversation_id = conversationId,
+                message = com.yume.network.ChatMessage(content = message),
+                stream = true
+            )
+            client.streamChat(request).collect { event ->
+                when (event) {
+                    is com.yume.network.ChatEvent.ChatStarted ->
+                        trySend(ChatStreamEvent.Started(event.conversation_id, event.message_id))
+                    is com.yume.network.ChatEvent.MessageDelta ->
+                        trySend(ChatStreamEvent.Delta(event.seq, event.delta.text))
+                    is com.yume.network.ChatEvent.Done -> {
+                        trySend(ChatStreamEvent.Done(event.finish_reason))
+                        close()
+                    }
+                    is com.yume.network.ChatEvent.Error -> {
+                        trySend(ChatStreamEvent.Error(event.code, event.message))
+                        close()
+                    }
+                    else -> {}
                 }
-                is com.yume.network.ChatEvent.Error -> {
-                    trySend(ChatStreamEvent.Error(event.code, event.message))
-                    close()
-                }
-                else -> {}
             }
+        } catch (e: Exception) {
+            trySend(ChatStreamEvent.Error("EXCEPTION", e.message ?: "Unknown"))
+            close()
         }
     }
 }

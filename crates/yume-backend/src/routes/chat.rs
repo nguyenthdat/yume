@@ -56,21 +56,17 @@ pub async fn chat_stream(
     tracing::info!(
         conversation_id = %conversation_id,
         message = %request.message.content,
+        has_api_key = state.config.deepseek_api_key.is_some(),
         "Chat request received",
     );
 
-    // Extract config values for the spawned task
-    let opencode_base_url = state.config.opencode_base_url.clone();
-    let opencode_username = state.config.opencode_username.clone();
-    let opencode_password = state.config.opencode_password.clone();
-    let message_content = request.message.content.clone();
-
-    // Connect to OpenCode (or mock)
+    // Connect: DeepSeek → OpenCode → mock
     let opencode_stream = OpenCodeStream::connect(
-        opencode_base_url,
-        opencode_username,
-        opencode_password,
-        message_content,
+        state.config.deepseek_api_key.clone(),
+        &state.config.opencode_base_url,
+        &state.config.opencode_username,
+        state.config.opencode_password.as_deref(),
+        &request.message.content,
     )
     .await;
 

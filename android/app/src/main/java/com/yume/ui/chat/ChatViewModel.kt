@@ -21,7 +21,9 @@ data class ChatMessageItem(
 )
 
 class ChatViewModel : ViewModel() {
-    private val backendUrl = "http://10.0.2.2:3000"
+    // Use 127.0.0.1 with adb reverse (adb reverse tcp:3000 tcp:3000)
+    // Fallback to 10.0.2.2 for standard emulator networking
+    private val backendUrl = "http://127.0.0.1:3000"
 
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()

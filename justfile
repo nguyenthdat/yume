@@ -133,10 +133,10 @@ ffi-android: ffi-bindings
 apk-native: ffi-android
     cd android && ./gradlew assembleDebug
 
-# Install and launch with native libs
-apk-native-run: apk-native
-    adb install -r android/app/build/outputs/apk/debug/app-debug.apk
-    adb shell am start -n com.yume/.MainActivity
+# # Install and launch with native libs
+# apk-native-run: apk-native
+#     adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+#     adb shell am start -n com.yume/.MainActivity
 
 # ---------------------------------------------------------------------------
 # Utilities
@@ -165,6 +165,13 @@ apk-install: apk-debug
 
 # Build debug APK, install, and launch
 apk-run: apk-install
+    adb reverse tcp:3000 tcp:3000
+    adb shell am start -n com.yume/.MainActivity
+
+# Build APK with native Rust libs, install and launch
+apk-native-run: apk-native
+    adb reverse tcp:3000 tcp:3000
+    adb install -r android/app/build/outputs/apk/debug/app-debug.apk
     adb shell am start -n com.yume/.MainActivity
 
 # Show connected Android devices

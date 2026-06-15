@@ -4,6 +4,7 @@ target/
 debug/
 .env
 *.log
+build/
 
 # Android
 android/.gradle/
