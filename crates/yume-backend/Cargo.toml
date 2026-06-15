@@ -18,6 +18,8 @@ dotenvy = "0.15"
 uuid = { version = "1", features = ["v4"] }
 futures = "0.3"
 tower-http = { version = "0.6", features = ["cors"] }
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+chrono = { version = "0.4", features = ["serde"] }
 
 # Internal crates
 yume-contracts = { path = "../yume-contracts" }

@@ -1,65 +1,25 @@
-//! Backend configuration loaded from environment variables.
-//!
-//! Every value has a safe default for local development.
-//! Secrets must never be hard-coded here.
+//! Backend configuration loaded from environment.
 
-/// Application configuration, populated from environment.
-///
-/// Fields are intentionally forward-looking — they will be consumed
-/// in later swings as auth, Qdrant, and OpenCode are integrated.
+use yume_opencode_client::ProviderConfig;
+
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct Config {
-    /// IP:port the backend listens on.
     pub listen_addr: String,
-
-    /// `YUME_ENV` — development, staging, or production.
     pub env: String,
-
-    /// Data retention period in days.
     pub retention_days: u32,
-
-    /// Whether prompt logging is enabled.
     pub log_prompts: bool,
-
-    /// Whether logged prompts should be redacted.
     pub log_prompts_redact: bool,
-
-    /// Public base URL for CORS and OAuth redirects.
     pub public_base_url: String,
-
-    /// JWT token issuer name.
     pub jwt_issuer: String,
-
-    /// Google OAuth Android client ID.
     pub google_android_client_id: Option<String>,
-
-    /// DeepSeek API key (never exposed to Android).
-    pub deepseek_api_key: Option<String>,
-
-    /// Private OpenCode server URL.
-    pub opencode_base_url: String,
-
-    /// OpenCode basic-auth username.
-    pub opencode_username: String,
-
-    /// OpenCode basic-auth password (secret).
-    pub opencode_password: Option<String>,
-
-    /// Qdrant gRPC/HTTP URL.
     pub qdrant_url: String,
-
-    /// Postgres connection string.
     pub database_url: Option<String>,
-
-    /// KeyDB connection string (Redis-compatible, faster).
     pub keydb_url: Option<String>,
+    /// Multi-provider LLM configuration
+    pub provider: ProviderConfig,
 }
 
 impl Config {
-    /// Load configuration from environment variables, falling back to safe defaults.
-    ///
-    /// Call `dotenvy::dotenv().ok()` before this if you want `.env` support.
     pub fn from_env() -> Self {
         Self {
             listen_addr: env_default("YUME_LISTEN_ADDR", "0.0.0.0:3000"),
@@ -70,20 +30,13 @@ impl Config {
             public_base_url: env_default("YUME_PUBLIC_BASE_URL", "http://localhost:3000"),
             jwt_issuer: env_default("YUME_JWT_ISSUER", "yume"),
             google_android_client_id: env_optional("YUME_GOOGLE_ANDROID_CLIENT_ID"),
-            deepseek_api_key: env_optional("DEEPSEEK_API_KEY"),
-            opencode_base_url: env_default("OPENCODE_BASE_URL", "http://localhost:4096"),
-            opencode_username: env_default("OPENCODE_SERVER_USERNAME", "opencode"),
-            opencode_password: env_optional("OPENCODE_SERVER_PASSWORD"),
             qdrant_url: env_default("QDRANT_URL", "http://localhost:6334"),
             database_url: env_optional("DATABASE_URL"),
             keydb_url: env_optional("KEYDB_URL"),
+            provider: ProviderConfig::from_env(),
         }
     }
 }
-
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 fn env_default(key: &str, default: &str) -> String {
     std::env::var(key).unwrap_or_else(|_| default.to_string())

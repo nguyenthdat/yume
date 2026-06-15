@@ -23,30 +23,23 @@ use yume_contracts::{
 };
 
 use crate::config::Config;
-use yume_opencode_client::OpenCodeStream;
+use crate::AppState;
+use yume_opencode_client::UnifiedStream;
 
-/// Shared application state for the chat route.
 #[derive(Clone)]
 pub struct ChatState {
     pub config: Arc<Config>,
 }
 
-/// `POST /v1/chat/stream`
-///
-/// Validates the request, connects to OpenCode (or falls back to mock mode),
-/// and streams SSE events back to the client.
 pub async fn chat_stream(
-    State(state): State<ChatState>,
+    State(state): State<AppState>,
     Json(request): Json<ChatRequest>,
 ) -> Result<Sse<impl Stream<Item = Result<Event, Infallible>>>, (StatusCode, String)> {
-    // Validate schema version
+    // Validate
     if request.schema_version != CURRENT_SCHEMA_VERSION {
         return Err((
             StatusCode::BAD_REQUEST,
-            format!(
-                "Unsupported schema version: {}. Expected: {}",
-                request.schema_version, CURRENT_SCHEMA_VERSION
-            ),
+            format!("Unsupported schema version: {}. Expected: {}", request.schema_version, CURRENT_SCHEMA_VERSION),
         ));
     }
 
@@ -56,19 +49,14 @@ pub async fn chat_stream(
     tracing::info!(
         conversation_id = %conversation_id,
         message = %request.message.content,
-        has_api_key = state.config.deepseek_api_key.is_some(),
+        provider = ?state.chat.config.provider.provider,
         "Chat request received",
     );
 
-    // Connect: DeepSeek → OpenCode → mock
-    let opencode_stream = OpenCodeStream::connect(
-        state.config.deepseek_api_key.clone(),
-        &state.config.opencode_base_url,
-        &state.config.opencode_username,
-        state.config.opencode_password.as_deref(),
+    let opencode_stream = UnifiedStream::connect(
+        &state.chat.config.provider,
         &request.message.content,
-    )
-    .await;
+    ).await;
 
     let (tx, rx) = mpsc::channel::<Result<Event, Infallible>>(32);
 
@@ -168,6 +156,7 @@ mod tests {
     use super::*;
     use axum::{Router, routing::post};
     use axum_test::TestServer;
+    use yume_opencode_client::ProviderConfig;
 
     fn test_app() -> Router {
         let config = Arc::new(Config {
@@ -179,16 +168,28 @@ mod tests {
             public_base_url: "http://localhost:3000".into(),
             jwt_issuer: "yume".into(),
             google_android_client_id: None,
-            deepseek_api_key: None,
-            opencode_base_url: "http://localhost:4096".into(),
-            opencode_username: "opencode".into(),
-            opencode_password: None,
             qdrant_url: "http://localhost:6334".into(),
             database_url: None,
             keydb_url: None,
+            provider: ProviderConfig {
+                provider: yume_opencode_client::Provider::Mock,
+                deepseek_key: None,
+                deepseek_model: None,
+                openai_key: None,
+                openai_org: None,
+                openai_model: None,
+                openai_oauth: None,
+                opencode_base: None,
+                opencode_user: None,
+                opencode_pass: None,
+            },
         });
-
-        let state = ChatState { config };
+        let chat_state = ChatState { config: config.clone() };
+        let oauth_state = crate::routes::oauth::OAuthState {
+            config: config.clone(),
+            tokens: crate::routes::oauth::TokenStore::new(),
+        };
+        let state = crate::AppState { config, chat: chat_state, oauth: oauth_state };
 
         Router::new()
             .route("/v1/chat/stream", post(chat_stream))
