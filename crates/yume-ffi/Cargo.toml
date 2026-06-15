@@ -4,15 +4,30 @@ version.workspace = true
 edition = "2021"
 license.workspace = true
 repository.workspace = true
-description = "UniFFI bindings — Rust core exposed to Kotlin via JNI"
+description = "UniFFI bindings — Rust AI core exposed to Kotlin via JNI"
+
+[features]
+default = []
+bindgen = ["uniffi/bindgen"]
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "yume_ffi"
+
+[[bin]]
+name = "gen-kotlin-bindings"
+path = "src/bin/gen-kotlin-bindings.rs"
+required-features = ["bindgen"]
 
 [dependencies]
-uniffi = { version = "0.28", features = ["cli"] }
+uniffi = { version = "0.28", features = ["cli", "bindgen"] }
+camino = "1"
 yume-contracts = { path = "../yume-contracts" }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 uuid = { version = "1", features = ["v4"] }
 thiserror = "2"
+ureq = { version = "3", features = ["json"] }
 
 [build-dependencies]
-uniffi = { version = "0.28", features = ["build"] }
+uniffi = { version = "0.28", features = ["build", "bindgen"] }

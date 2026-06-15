@@ -27,8 +27,10 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
-    kotlinOptions {
-        jvmTarget = "17"
+    kotlin {
+        compilerOptions {
+            jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17)
+        }
     }
 
     buildFeatures {
@@ -49,12 +51,36 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.0")
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.0")
 
+    // Networking (fallback when native library not available)
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("com.squareup.okhttp3:okhttp-sse:4.12.0")
     implementation("com.google.code.gson:gson:2.11.0")
+
+    // JNA — needed for UniFFI-generated Kotlin bindings
+    implementation("net.java.dev.jna:jna:5.15.0@aar")
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.0")
     implementation("androidx.core:core-ktx:1.13.0")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
+}
+
+// Copy native libraries from Rust build into jniLibs.
+// Run `just ffi-android` first, then build the APK.
+// The jniLibs directory is pre-created with .gitkeep.
+tasks.register<Copy>("copyNativeLibs") {
+    from("${rootProject.projectDir}/../target") {
+        include("*/release/libyume_ffi.so")
+    }
+    into("src/main/jniLibs")
+    eachFile {
+        val srcPath = path
+        path = when {
+            srcPath.contains("aarch64") -> "arm64-v8a/libyume_ffi.so"
+            srcPath.contains("armv7")   -> "armeabi-v7a/libyume_ffi.so"
+            srcPath.contains("i686")    -> "x86/libyume_ffi.so"
+            srcPath.contains("x86_64")  -> "x86_64/libyume_ffi.so"
+            else                        -> return@eachFile
+        }
+    }
 }

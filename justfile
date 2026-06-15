@@ -121,13 +121,22 @@ opencode-logs:
 
 # Generate Kotlin bindings from UniFFI UDL → android/app/src/main/java/com/yume/rust/
 ffi-bindings:
-    @echo "Generating Kotlin bindings from yume-ffi..."
-    cargo build -p yume-ffi
-    mkdir -p android/app/src/main/java/com/yume/rust
-    uniffi-bindgen generate \
-        crates/yume-ffi/src/yume.udl \
-        --language kotlin \
-        --out-dir android/app/src/main/java/com/yume/rust/
+    cargo run -p yume-ffi --features bindgen --bin gen-kotlin-bindings
+
+# Cross-compile Rust for Android (requires cargo-ndk + Android NDK)
+ffi-android: ffi-bindings
+    @echo "Building yume-ffi for Android targets..."
+    cargo ndk --target arm64-v8a --target x86_64 -o android/app/src/main/jniLibs build -p yume-ffi --release
+    @echo "✅ Native libs built → android/app/src/main/jniLibs/"
+
+# Full Android build with native Rust libs
+apk-native: ffi-android
+    cd android && ./gradlew assembleDebug
+
+# Install and launch with native libs
+apk-native-run: apk-native
+    adb install -r android/app/build/outputs/apk/debug/app-debug.apk
+    adb shell am start -n com.yume/.MainActivity
 
 # ---------------------------------------------------------------------------
 # Utilities

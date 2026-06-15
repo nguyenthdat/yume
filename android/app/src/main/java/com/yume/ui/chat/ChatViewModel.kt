@@ -2,125 +2,89 @@ package com.yume.ui.chat
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.yume.network.*
+import com.yume.rust.ChatStreamEvent
+import com.yume.rust.YumeCore
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 
-/** UI state for the chat screen. */
 data class ChatUiState(
     val messages: List<ChatMessageItem> = emptyList(),
     val isStreaming: Boolean = false,
     val error: String? = null
 )
 
-/** A single visible message bubble in the chat. */
 data class ChatMessageItem(
     val id: String,
-    val role: String, // "user" or "assistant"
+    val role: String,
     val content: String,
     val isStreaming: Boolean = false
 )
 
 class ChatViewModel : ViewModel() {
-    private val apiClient = ApiClient()
+    private val backendUrl = "http://10.0.2.2:3000"
 
     private val _uiState = MutableStateFlow(ChatUiState())
     val uiState: StateFlow<ChatUiState> = _uiState.asStateFlow()
 
     private var conversationId = ""
 
+    init {
+        val mode = if (YumeCore.isNativeAvailable) "Native (Rust FFI)" else "HTTP fallback"
+        android.util.Log.i("Yume", "ChatViewModel init — mode: $mode")
+    }
+
     fun sendMessage(text: String) {
-        if (text.isBlank()) return
+        if (text.isBlank() || _uiState.value.isStreaming) return
 
         val userMsgId = java.util.UUID.randomUUID().toString()
-        val currentMessages = _uiState.value.messages.toMutableList()
+        val messages = _uiState.value.messages.toMutableList()
 
-        currentMessages.add(
-            ChatMessageItem(id = userMsgId, role = "user", content = text)
-        )
+        messages.add(ChatMessageItem(id = userMsgId, role = "user", content = text))
 
         val assistantMsgId = java.util.UUID.randomUUID().toString()
-        currentMessages.add(
-            ChatMessageItem(
-                id = assistantMsgId,
-                role = "assistant",
-                content = "",
-                isStreaming = true
-            )
+        messages.add(
+            ChatMessageItem(id = assistantMsgId, role = "assistant", content = "", isStreaming = true)
         )
 
-        _uiState.value = _uiState.value.copy(
-            messages = currentMessages,
-            isStreaming = true,
-            error = null
-        )
+        _uiState.value = ChatUiState(messages = messages, isStreaming = true)
 
         viewModelScope.launch {
-            val request = ChatRequest(
-                conversation_id = conversationId,
-                message = ChatMessage(content = text),
-                stream = true
-            )
-
             val fullResponse = StringBuilder()
 
-            apiClient.streamChat(request).collect { event ->
-                when (event) {
-                    is ChatEvent.ChatStarted -> {
-                        conversationId = event.conversation_id
-                    }
-
-                    is ChatEvent.MessageDelta -> {
-                        fullResponse.append(event.delta.text)
-                        updateAssistantMessage(
-                            assistantMsgId,
-                            fullResponse.toString(),
-                            isStreaming = true
-                        )
-                    }
-
-                    is ChatEvent.Done -> {
-                        updateAssistantMessage(
-                            assistantMsgId,
-                            fullResponse.toString(),
-                            isStreaming = false
-                        )
-                        _uiState.value = _uiState.value.copy(isStreaming = false)
-                    }
-
-                    is ChatEvent.Error -> {
-                        if (fullResponse.isEmpty()) {
-                            updateAssistantMessage(
-                                assistantMsgId,
-                                "Lỗi: ${event.message}",
-                                isStreaming = false
+            YumeCore.sendMessage(backendUrl, text, conversationId)
+                .collect { event ->
+                    when (event) {
+                        is ChatStreamEvent.Started -> {
+                            conversationId = event.conversationId
+                        }
+                        is ChatStreamEvent.Delta -> {
+                            fullResponse.append(event.text)
+                            updateMessage(assistantMsgId, fullResponse.toString(), true)
+                        }
+                        is ChatStreamEvent.Done -> {
+                            updateMessage(assistantMsgId, fullResponse.toString(), false)
+                            _uiState.value = _uiState.value.copy(isStreaming = false)
+                        }
+                        is ChatStreamEvent.Error -> {
+                            if (fullResponse.isEmpty()) {
+                                updateMessage(assistantMsgId, "Lỗi: ${event.message}", false)
+                            }
+                            _uiState.value = _uiState.value.copy(
+                                isStreaming = false,
+                                error = event.message
                             )
                         }
-                        _uiState.value = _uiState.value.copy(
-                            isStreaming = false,
-                            error = event.message
-                        )
                     }
-
-                    else -> { /* ignore usage, citation for now */ }
                 }
-            }
         }
     }
 
-    private fun updateAssistantMessage(
-        id: String,
-        content: String,
-        isStreaming: Boolean
-    ) {
-        val messages = _uiState.value.messages.toMutableList()
-        val index = messages.indexOfFirst { it.id == id }
-        if (index >= 0) {
-            messages[index] = messages[index].copy(
-                content = content,
-                isStreaming = isStreaming
-            )
-            _uiState.value = _uiState.value.copy(messages = messages)
+    private fun updateMessage(id: String, content: String, streaming: Boolean) {
+        val msgs = _uiState.value.messages.toMutableList()
+        val i = msgs.indexOfFirst { it.id == id }
+        if (i >= 0) {
+            msgs[i] = msgs[i].copy(content = content, isStreaming = streaming)
+            _uiState.value = _uiState.value.copy(messages = msgs)
         }
     }
 

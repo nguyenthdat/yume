@@ -1,15 +1,20 @@
 namespace yume {
-    // Functions
     [Throws=YumeError]
     string current_schema_version();
 
     [Throws=YumeError]
     string build_chat_request_json(string message_content, string conversation_id);
+
+    [Throws=YumeError]
+    void send_chat_message(string backend_url, string message_content, string conversation_id, ChatCallback callback);
 };
 
-// ---------------------------------------------------------------------------
-// Dictionaries (Rust struct → Kotlin data class)
-// ---------------------------------------------------------------------------
+callback interface ChatCallback {
+    void on_started(string conversation_id, string message_id);
+    void on_delta(u64 seq, string text);
+    void on_done(string finish_reason);
+    void on_error(string code, string message);
+};
 
 dictionary ChatMessage {
     string role;
@@ -20,22 +25,10 @@ dictionary TextDelta {
     string text;
 };
 
-dictionary ChatStarted {
-    string conversation_id;
-    string message_id;
-};
-
-dictionary MessageDelta {
-    u64 seq;
-    TextDelta delta;
-};
-
-// ---------------------------------------------------------------------------
-// Error type
-// ---------------------------------------------------------------------------
-
 [Error]
 enum YumeError {
     "InvalidInput",
+    "NetworkError",
     "SerializationError",
+    "ServerError",
 };
