@@ -1,0 +1,9 @@
+[package]
+name = "yume-core"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Yume core utilities and shared types (stub — Swing 0.3+)"
+
+[dependencies]

@@ -19,9 +19,9 @@
           "rust-uniffi-android-architect": "allow",
           "mobile-ocr-architect": "allow",
           "llm-rag-chatbot-architect": "allow",
-          "architecture-qa-reviewer": "allow"
-        }
-      }
+          "architecture-qa-reviewer": "allow",
+        },
+      },
     },
     "mobile-ai-architecture-orchestrator": {
       "mode": "primary",
@@ -38,9 +38,9 @@
           "rust-senior-engineer": "allow",
           "mobile-ocr-architect": "allow",
           "llm-rag-chatbot-architect": "allow",
-          "architecture-qa-reviewer": "allow"
-        }
-      }
+          "architecture-qa-reviewer": "allow",
+        },
+      },
     },
     "requirements-coding-orchestrator": {
       "mode": "primary",
@@ -55,9 +55,9 @@
           "senior-coding-engineer": "allow",
           "android-senior-engineer": "allow",
           "rust-senior-engineer": "allow",
-          "architecture-qa-reviewer": "allow"
-        }
-      }
+          "architecture-qa-reviewer": "allow",
+        },
+      },
     },
     "senior-coding-engineer": {
       "mode": "subagent",
@@ -68,9 +68,9 @@
         "bash": "ask",
         "webfetch": "allow",
         "task": {
-          "*": "deny"
-        }
-      }
+          "*": "deny",
+        },
+      },
     },
     "android-senior-engineer": {
       "mode": "subagent",
@@ -81,9 +81,9 @@
         "bash": "ask",
         "webfetch": "allow",
         "task": {
-          "*": "deny"
-        }
-      }
+          "*": "deny",
+        },
+      },
     },
     "rust-senior-engineer": {
       "mode": "subagent",
@@ -94,9 +94,9 @@
         "bash": "ask",
         "webfetch": "allow",
         "task": {
-          "*": "deny"
-        }
-      }
+          "*": "deny",
+        },
+      },
     },
     "rust-uniffi-android-architect": {
       "mode": "subagent",
@@ -107,9 +107,9 @@
         "bash": "ask",
         "webfetch": "allow",
         "task": {
-          "*": "deny"
-        }
-      }
+          "*": "deny",
+        },
+      },
     },
     "mobile-ocr-architect": {
       "mode": "subagent",
@@ -120,9 +120,9 @@
         "bash": "ask",
         "webfetch": "allow",
         "task": {
-          "*": "deny"
-        }
-      }
+          "*": "deny",
+        },
+      },
     },
     "llm-rag-chatbot-architect": {
       "mode": "subagent",
@@ -133,9 +133,9 @@
         "bash": "ask",
         "webfetch": "allow",
         "task": {
-          "*": "deny"
-        }
-      }
+          "*": "deny",
+        },
+      },
     },
     "architecture-qa-reviewer": {
       "mode": "subagent",
@@ -146,9 +146,43 @@
         "bash": "ask",
         "webfetch": "allow",
         "task": {
-          "*": "deny"
-        }
-      }
-    }
-  }
+          "*": "deny",
+        },
+      },
+    },
+  },
+  "formatter": true,
+  "lsp": true,
+  "permission": {
+    "edit": "allow",
+    "bash": "allow",
+    "webfetch": "allow",
+  },
+  "mcp": {
+    "docs-rs": {
+      "enabled": true,
+      "type": "local",
+      "command": ["npx", "@nuskey8/docs-rs-mcp@latest", "-y"],
+    },
+    "rust-analyzer": {
+      "enabled": true,
+      "type": "local",
+      "command": ["rust-analyzer-mcp"],
+    },
+    "cargo-mcp": {
+      "enabled": true,
+      "type": "local",
+      "command": ["cargo-mcp", "serve"],
+    },
+    "cratesio-mcp": {
+      "enabled": true,
+      "type": "local",
+      "command": ["cratesio-mcp"],
+    },
+    "mobile-device-mcp": {
+      "enabled": true,
+      "type": "local",
+      "command": ["npx", "-y", "@srmorete/mobile-device-mcp@latest"],
+    },
+  },
 }

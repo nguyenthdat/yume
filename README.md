@@ -16,3 +16,15 @@ Yume is an Android AI chat app architecture using Kotlin UI, Rust core/backend, 
 - [Security model](docs/security.md)
 - [Deployment: Docker Compose and Kubernetes](docs/deployment.md)
 - [MVP roadmap](docs/roadmap.md)
+
+## Development
+
+Run `make help` to see available commands.
+
+### Quick start (when implemented)
+
+```sh
+cp .env.example .env
+# edit .env with your values
+make dev
+```

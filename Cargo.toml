@@ -1,0 +1,17 @@
+[workspace]
+resolver = "2"
+members = [
+  "crates/yume-core",
+  "crates/yume-ffi",
+  "crates/yume-contracts",
+  "crates/yume-backend",
+  "crates/yume-opencode-client",
+  "crates/yume-qdrant",
+  "crates/yume-embedding",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+license = "MIT"
+repository = "https://github.com/nguyenthdat/yume"

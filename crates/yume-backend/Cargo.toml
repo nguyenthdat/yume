@@ -1,0 +1,30 @@
+[package]
+name = "yume-backend"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Yume Axum backend control plane — public API surface for Android"
+
+[dependencies]
+axum = "0.8"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+tokio = { version = "1", features = ["full"] }
+tokio-stream = "0.1"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+dotenvy = "0.15"
+uuid = { version = "1", features = ["v4"] }
+futures = "0.3"
+tower-http = { version = "0.6", features = ["cors"] }
+
+# Internal crates
+yume-contracts = { path = "../yume-contracts" }
+yume-opencode-client = { path = "../yume-opencode-client" }
+
+# Database — sqlx with Postgres + runtime-tokio
+sqlx = { version = "0.8", features = ["runtime-tokio", "tls-rustls", "postgres", "uuid", "chrono"] }
+
+[dev-dependencies]
+axum-test = "17"

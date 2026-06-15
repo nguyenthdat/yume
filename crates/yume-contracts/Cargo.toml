@@ -1,0 +1,13 @@
+[package]
+name = "yume-contracts"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Shared DTOs and schemas for Yume — the single source of truth for API contracts"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+
+[dev-dependencies]
+serde_json = "1"

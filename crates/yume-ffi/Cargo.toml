@@ -1,0 +1,9 @@
+[package]
+name = "yume-ffi"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "UniFFI bindings for Android Rust Core (stub — Swing 0.6+)"
+
+[dependencies]

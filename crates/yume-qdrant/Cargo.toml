@@ -1,0 +1,12 @@
+[package]
+name = "yume-qdrant"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Qdrant vector database client (stub — Swing 0.4+)"
+
+[dependencies]
+qdrant-client = "1"
+serde = { version = "1", features = ["derive"] }
+tokio = { version = "1", features = ["rt"] }

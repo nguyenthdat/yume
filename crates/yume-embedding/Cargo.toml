@@ -1,0 +1,9 @@
+[package]
+name = "yume-embedding"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Text embedding utilities for on-device and server-side models (stub — Swing 0.7+)"
+
+[dependencies]
